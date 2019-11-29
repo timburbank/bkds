@@ -11,3 +11,6 @@ b.leds[19] = True
 b.leds[0] = True
 b.colors[1] = True
 b.update_leds()
+
+b.update_buttons()
+print(b.buttons)
