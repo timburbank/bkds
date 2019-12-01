@@ -1,8 +1,11 @@
+#!/usr/bin/python
 '''
 Talk to BKDS-8062 with Raspberry Pi GPIO pins
 '''
-
+import argparse
 from time import sleep
+from datetime import datetime
+from datetime import timedelta
 from gpiozero import OutputDevice
 from gpiozero import InputDevice
 
@@ -17,7 +20,8 @@ class Bkds(object):
         latch_pin=12,
         reset_pin=16,
         led_data_pin=20,
-        switch_data_pin=21):
+        switch_data_pin=21,
+        num_buttons=21):
         '''
         Setup GPIO pins, defaulting to the pin numbers on what will probably
         the only hardware this ever runs on
@@ -35,13 +39,14 @@ class Bkds(object):
         ## with about 200ns between operations
         ## We'll just set it to "fast enough for now"
         self.clock_time = 0.000001
-
-        self.leds = [False] * 21
+        
+        self.num_buttons = num_buttons ## not tested with other than 21
+        self.leds = [False] * self.num_buttons
         
         ## LED red/orange color can be set for the first, last, or all middle
         self.colors = [False] * 3 
 
-        self.buttons = [False] * 21
+        self.buttons = [False] * self.num_buttons
 
 
     def click(self):
@@ -86,9 +91,7 @@ class Bkds(object):
         self.update_buttons()
 
 
-
-
-if __name__ == '__main__':
+def toggle():
     bkds = Bkds()
     buttons_held = [False] * 21
     print('Ready')
@@ -105,3 +108,104 @@ if __name__ == '__main__':
         bkds.update()
 
 
+def xmas():
+    '''
+    Light up all LEDs in sequence
+    '''
+    bkds = Bkds()
+    anim_time = 0.02
+
+    bkds.leds = [False] * bkds.num_buttons
+    bkds.update_leds()
+   
+    try:
+        while True:
+            bkds.colors = [False] * 3
+            for i in range(0, bkds.num_buttons):
+                bkds.leds = [False] * bkds.num_buttons
+                bkds.leds[i] = True
+                bkds.update_leds()
+                sleep(anim_time)
+         
+            bkds.leds = [False] * bkds.num_buttons
+            bkds.update_leds()
+
+            bkds.colors = [True] * 3
+            for i in reversed(range(0, bkds.num_buttons)):
+                bkds.leds = [False] * bkds.num_buttons
+                bkds.leds[i] = True
+                bkds.update_leds()        
+                sleep(anim_time)
+
+    except KeyboardInterrupt:
+        bkds.leds = [False] * bkds.num_buttons
+        bkds.colors = [False] * 3
+        bkds.update_leds()
+        exit()
+
+def clear_leds():
+    bkds = Bkds()
+    bkds.update_leds()
+
+
+def countdown_timer(func, duration):
+    bkds = Bkds()
+    bkds.colors = [False, False, True]
+    target_seconds = duration * 60
+    start_time = datetime.now()
+    target_time = start_time + timedelta(seconds = target_seconds)
+
+    while datetime.now() < target_time:
+        elapsed = datetime.now() - start_time
+        progress = (float(elapsed.seconds) / target_seconds)
+        progress_led = int(progress * (bkds.num_buttons - 1))
+        bkds.leds = [False] * bkds.num_buttons
+        bkds.leds[progress_led] = True
+        bkds.update_leds()
+        print(elapsed.seconds)
+        sleep(1)
+
+    bkds.leds = [False] * bkds.num_buttons
+    bkds.leds[-1] = True
+    bkds.update_leds()
+
+
+def cli_args():
+    '''
+    Define command line options for testing
+    '''
+    parser = argparse.ArgumentParser(description=__doc__)
+    subparsers = parser.add_subparsers()
+    
+    parser_toggle = subparsers.add_parser(
+        'toggle',
+        help='Toggle lights and show button inputs')
+    parser_toggle.set_defaults(func=toggle)
+
+    parser_xmas = subparsers.add_parser(
+        'xmas',
+        help='Light up everything in sequence')
+    parser_xmas.set_defaults(func=xmas)
+    
+    clear_parser = subparsers.add_parser(
+        'clear',
+        help='Turn off all LEDs')
+    clear_parser.set_defaults(func=clear_leds)
+
+    timer_parser = subparsers.add_parser(
+        'timer',
+        help='Show timer progress')
+    timer_parser.add_argument(
+        'duration',
+        type=int,
+        help='Timer duration in minutes')
+    timer_parser.set_defaults(func=countdown_timer)
+    
+    return parser.parse_args()
+
+if __name__ == '__main__':
+    args = cli_args()
+    if len(vars(args)) > 1:
+        args.func(**vars(args))
+    else:
+        args.func()
