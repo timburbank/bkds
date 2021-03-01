@@ -157,14 +157,14 @@ def countdown_timer(func, duration):
 
     while datetime.now() < target_time:
         elapsed = datetime.now() - start_time
-        progress = (float(elapsed.seconds) / target_seconds)
+        progress = (float(elapsed.total_seconds()) / target_seconds)
         progress_led = int(progress * (bkds.num_buttons - 1))
+
         bkds.leds = [False] * bkds.num_buttons
         bkds.leds[progress_led] = True
         bkds.update_leds()
-        print(elapsed.seconds)
-        sleep(1)
 
+    ## When finished
     bkds.leds = [False] * bkds.num_buttons
     bkds.leds[-1] = True
     bkds.update_leds()
@@ -197,7 +197,7 @@ def cli_args():
         help='Show timer progress')
     timer_parser.add_argument(
         'duration',
-        type=int,
+        type=float,
         help='Timer duration in minutes')
     timer_parser.set_defaults(func=countdown_timer)
     
