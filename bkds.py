@@ -149,11 +149,15 @@ def clear_leds():
 
 
 def countdown_timer(func, duration):
+    time_format = '%Y-%m-%d %H:%M:%S'
     bkds = Bkds()
     bkds.colors = [False, False, True]
     target_seconds = duration * 60
     start_time = datetime.now()
     target_time = start_time + timedelta(seconds = target_seconds)
+    last_displayed_time = timedelta()
+
+    print('{} timer started'.format(start_time.strftime(time_format)))
 
     while datetime.now() < target_time:
         elapsed = datetime.now() - start_time
@@ -164,10 +168,23 @@ def countdown_timer(func, duration):
         bkds.leds[progress_led] = True
         bkds.update_leds()
 
+        if elapsed >= last_displayed_time + timedelta(seconds=60):
+            last_displayed_time = elapsed
+            print('{} {:.0f}/{:.0f}'.format(
+                datetime.now().strftime(time_format),
+                elapsed.total_seconds() / 60,
+                duration))
+
+        if duration > 1:
+            ## Use less CPU if we don't need fast updates
+            sleep(1)
+
     ## When finished
     bkds.leds = [False] * bkds.num_buttons
     bkds.leds[-1] = True
     bkds.update_leds()
+
+    print('{} timer finished'.format(datetime.now().strftime(time_format)))
 
 
 def cli_args():
